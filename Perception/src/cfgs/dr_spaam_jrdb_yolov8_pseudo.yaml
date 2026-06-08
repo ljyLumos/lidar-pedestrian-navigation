@@ -1,0 +1,74 @@
+# DR-SPAAM 配置文件 - 使用 YOLOv8 伪标签训练
+# 
+# 用于对比实验：YOLOv8 vs Mask R-CNN 生成的伪标签质量
+#
+# 使用方法:
+#   python bin/train.py --cfg cfgs/dr_spaam_jrdb_yolov8_pseudo.yaml
+
+model:
+    type: "dr-spaam"
+    kwargs:
+        dropout: 0.5
+        num_pts: 56
+        embedding_length: 128
+        alpha: 0.5
+        window_size: 17
+        panoramic_scan: True
+
+    # 对于含噪伪标签的损失函数选择
+    # 0: BCE (标准二元交叉熵)
+    # 1: SymmetricBCE (对称BCE, 对标签噪声更鲁棒)
+    # 2: PartiallyHuberisedBCE
+    cls_loss:
+        type: 0
+
+    mixup_alpha: 0.0
+    mixup_w: 0.0
+    self_paced: False
+
+dataset:
+    augment_data: False
+    person_only: True
+    pseudo_label: True  # 启用伪标签训练
+    pl_correction_level: 0  # 0: 不校正, 1: 移除假阳, 2: 移除假阴, 3: 两者都移除
+
+    DataHandle:
+        data_dir: "./data/JRDB"
+        num_scans: 10
+        scan_stride: 1
+        tracking: False
+        detector_type: "yolov8"  # 使用 YOLOv8 检测结果生成伪标签
+
+    cutout_kwargs:
+        fixed: True
+        centered: True
+        window_width: 1.0
+        window_depth: 0.5
+        num_cutout_pts: 56
+        padding_val: 29.99
+        area_mode: True
+
+dataloader:
+    batch_size: 4          # 减小以避免显存溢出
+    num_workers: 4
+
+pipeline:
+    Trainer:
+        grad_norm_clip: -1.0
+        ckpt_interval: 2
+        eval_interval: 2
+        epoch: 10          # 减少 epoch 数，对比实验足够
+
+    Optim:
+        scheduler_kwargs:
+            epoch0: 3      # 调整学习率调度
+            epoch1: 10
+            lr0: 1.e-3
+            lr1: 1.e-6
+
+    Logger:
+        log_dir: "./logs/"
+        tag: "dr_spaam_jrdb_yolov8_pseudo"
+        log_fname: "log.txt"
+        backup_list: []
+

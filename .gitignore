@@ -216,3 +216,33 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Data and datasets
+data/
+datasets/
+JRDB/
+rosbags/
+*.bag
+*.pcd
+
+# Model weights and checkpoints
+*.pt
+*.pth
+*.ckpt
+*.onnx
+checkpoints/
+weights/
+
+# Experiment outputs
+logs/
+runs/
+outputs/
+comparison_results/
+wandb/
+tensorboard/
+
+# IDE / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

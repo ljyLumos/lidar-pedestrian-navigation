@@ -1,0 +1,74 @@
+# DR-SPAAM 配置文件 - 使用 Fused 伪标签训练 (Mask R-CNN + YOLOv8 融合)
+# 
+# 实验 1/3: Fused 伪标签 - 结合两种检测器的优势
+# - 高 Precision (89%): 伪标签噪声少
+# - 合理 Recall (62%): 保留足够正样本
+# - 最高 F1 (0.73): 综合质量最佳
+#
+# 使用方法:
+#   python bin/train.py --cfg cfgs/dr_spaam_jrdb_fused_pseudo.yaml
+
+model:
+    type: "dr-spaam"
+    kwargs:
+        dropout: 0.5
+        num_pts: 56
+        embedding_length: 128
+        alpha: 0.5
+        window_size: 17
+        panoramic_scan: True
+
+    # 对于含噪伪标签的损失函数选择
+    cls_loss:
+        type: 0  # BCE loss
+
+    mixup_alpha: 0.0
+    mixup_w: 0.0
+    self_paced: False
+
+dataset:
+    augment_data: False
+    person_only: True
+    pseudo_label: True  # 启用伪标签训练
+    pl_correction_level: 0
+
+    DataHandle:
+        data_dir: "./data/JRDB"
+        num_scans: 10
+        scan_stride: 1
+        tracking: False
+        detector_type: "fused"  # 使用 Fused (Mask R-CNN + YOLOv8) 融合检测结果
+
+    cutout_kwargs:
+        fixed: True
+        centered: True
+        window_width: 1.0
+        window_depth: 0.5
+        num_cutout_pts: 56
+        padding_val: 29.99
+        area_mode: True
+
+dataloader:
+    batch_size: 4          # 减小以避免显存溢出
+    num_workers: 4
+
+pipeline:
+    Trainer:
+        grad_norm_clip: -1.0
+        ckpt_interval: 2
+        eval_interval: 2
+        epoch: 10          # 减少 epoch 数，对比实验足够
+
+    Optim:
+        scheduler_kwargs:
+            epoch0: 3      # 调整学习率调度
+            epoch1: 10
+            lr0: 1.e-3
+            lr1: 1.e-6
+
+    Logger:
+        log_dir: "./logs/"
+        tag: "dr_spaam_jrdb_fused_pseudo"
+        log_fname: "log.txt"
+        backup_list: []
+
