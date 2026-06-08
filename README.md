@@ -4,7 +4,7 @@
 
 This repository implements an end-to-end dynamic environment navigation system for mobile robots, integrating **high-precision perception** and **robust decision-making** through DR-SPAAM-based LiDAR pedestrian detection and TD3-based reinforcement learning.
 
-- **Project Report:** `docs/report.pdf`
+### [**Project Report**](./docs/report.pdf)
 
 ## 📋 Overview
 
