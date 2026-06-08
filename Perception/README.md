@@ -9,7 +9,7 @@ The main experiment uses YOLOv8 detections on JRDB camera images to generate vis
 ## Module Structure
 
 ```text
-Perception/src/
+Perception/
 ├── bin/                 # Training, pseudo-label generation, fusion, and comparison entry points
 │   └── plotting/        # Analysis and visualization helpers
 ├── cfgs/                # JRDB training configs for Mask R-CNN, YOLOv8, and fused pseudo labels
