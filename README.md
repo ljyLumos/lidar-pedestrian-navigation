@@ -54,7 +54,7 @@ The perception module adapts a DR-SPAAM-style 2D LiDAR pedestrian detection pipe
 
 Reported in the project report, AP@0.5m improves from 0.417 to 0.566 when using the improved pseudo-label strategy.
 
-![Detection examples](assets/detection_examples.png)
+![detection_examples](assets/detection_examples.png)
 
 ### Navigation: TD3 in ROS/Gazebo
 
@@ -67,7 +67,7 @@ The navigation module is based on a TD3 mobile robot navigation implementation. 
 
 The current checked-in TD3 code uses a 24-dimensional state (`20` LiDAR bins + `4` robot/goal features). The richer report-level design with explicit dynamic pedestrian features and staged curriculum learning is documented in the report, but is not fully represented as a standalone checked-in decision module in this repository.
 
-![ROS/Gazebo demo](assets/ros_gazebo_demo.png)
+![ros_gazebo_demo](assets/ros_gazebo_demo.png)
 
 ## Installation
 
