@@ -1,86 +1,240 @@
 # lidar-pedestrian-navigation
 
-### 2D LiDAR-based Pedestrian Detection and Dynamic Robot Navigation in ROS/Gazebo
+2D LiDAR-based pedestrian detection and robot navigation in ROS/Gazebo.
 
-This repository implements an end-to-end dynamic environment navigation system for mobile robots, integrating **high-precision perception** and **robust decision-making** through DR-SPAAM-based LiDAR pedestrian detection and TD3-based reinforcement learning.
+This repository collects the code and experiment assets for a course/research project on mobile robot navigation in pedestrian-rich environments. The project combines:
 
-### [**Project Report**](./docs/report.pdf)
+- a DR-SPAAM-style 2D LiDAR pedestrian detector trained with camera-based pseudo labels, and
+- a TD3 reinforcement learning navigation baseline running in a ROS/Gazebo Pioneer 3DX simulation with a Velodyne sensor.
 
-## 📋 Overview
+The project report describes the full research motivation, method design, and experimental results:
 
-The system addresses safe and efficient navigation of robots in environments with dynamic pedestrians. It consists of two primary stages:
+[Project Report](./docs/report.pdf)
 
-1. **Perception**: High-precision 2D LiDAR-based pedestrian detection enhanced with YOLOv8 pseudo-labeling, improving AP@0.5m from 0.417 → 0.566 (+35.8%).  
-2. **Decision & Control**: TD3 reinforcement learning augmented with a dense reward function and four-stage curriculum learning, achieving navigation success rate of 63.0% in dense dynamic scenarios (+96.9% over baseline TD3).
+![System framework](assets/framework.png)
 
-The system outputs semantic obstacle information from perception directly into the RL environment, reducing search complexity and improving policy robustness.
+## Overview
 
-![System Architecture](assets/framework.png)  
-*Overall system architecture and layered design.*
+Robots moving through dynamic pedestrian environments need both reliable perception and robust decision making. This repository is organized around two connected themes:
 
-## 🎯 Motivation
+1. Perception: improve 2D LiDAR pedestrian detection by replacing or complementing Mask R-CNN pseudo labels with YOLOv8 detections on JRDB camera images, then projecting visual detections into LiDAR supervision for DR-SPAAM training.
+2. Navigation: use TD3 to learn continuous linear and angular velocity commands for a Pioneer 3DX robot in ROS/Gazebo from LiDAR observations and goal-relative state.
 
-Original DR-SPAAM-based TD3 navigation suffered from:
+The report discusses a broader end-to-end design in which semantic pedestrian information from perception is used to improve dynamic navigation. The current source tree should be read as a reproducible code base for the perception experiments plus a ROS/Gazebo TD3 navigation baseline, with integration notes and assets for the combined project.
 
-- **Q-value overestimation & policy instability**: Single-Q networks and naive reward design led to erratic behaviors and low convergence.  
-- **Sparse and imbalanced rewards**: Resulted in reward hacking (e.g., robot freezing or circling).  
-- **Lack of progressive training**: Training directly in dense dynamic scenes led to extremely low success rates and high compute cost.
+## Repository Structure
 
-Our goal is to overcome these limitations by integrating high-quality perception, reward reshaping, and curriculum-based staged training.
+```text
+.
+├── Perception/                 # YOLOv8-enhanced DR-SPAAM perception module
+│   ├── bin/                    # Dataset setup, YOLOv8 detections, fusion, training, comparison
+│   ├── cfgs/                   # DR-SPAAM configs for Mask R-CNN, YOLOv8, and fused pseudo labels
+│   ├── dr_spaam/               # Dataset handles, models, detector wrapper, training pipeline
+│   ├── scripts/                # Batch experiment scripts
+│   ├── tests/                  # Development and visualization tests
+│   └── README.md
+├── RL-robot-navigation/         # TD3 navigation baseline and ROS/Gazebo workspace
+│   ├── TD3/                    # TD3 actor/critic, replay buffer, Gazebo environment
+│   └── catkin_ws/src/          # Pioneer 3DX scenario and Velodyne simulator packages
+├── assets/                     # Project figures used by README/report
+└── docs/report.pdf             # Project report
+```
 
-## 🛠 Method
+## Key Components
 
-### 1. Perception Stage (YOLOv8-enhanced DR-SPAAM)
+### Perception: YOLOv8-enhanced DR-SPAAM
 
-- **Pseudo-label Generation**: Replace Mask R-CNN with YOLOv8 for 2D pedestrian detection on JRDB sequences.  
-- **Cross-modal Projection**: Map detected bounding boxes from camera to LiDAR scan plane.  
-- **LiDAR Model Training**: DR-SPAAM dual-branch architecture supervised by improved pseudo-labels.
+The perception module adapts a DR-SPAAM-style 2D LiDAR pedestrian detection pipeline for JRDB-style data. It adds:
 
-### 2. Decision Stage (TD3 + Curriculum Learning)
+- YOLOv8 person detection on stitched JRDB camera images.
+- Mask R-CNN, YOLOv8, and fused pseudo-label comparison.
+- Camera-to-LiDAR pseudo-label generation using projected LiDAR points.
+- DR-SPAAM training and evaluation configs for each pseudo-label source.
 
-- **State Space (32-D)**:  
-  - 20-D LiDAR obstacle distances  
-  - 8-D dynamic pedestrian features (2 nearest pedestrians × 4-D each)  
-  - 4-D robot and goal information (distance, heading, velocity, angular velocity)  
+Reported in the project report, AP@0.5m improves from 0.417 to 0.566 when using the improved pseudo-label strategy.
 
-- **Reward Function**: Multi-component dense reward combining:  
-  - Goal achievement  
-  - Collision penalty  
-  - Velocity maintenance  
-  - Smoothness  
-  - Pedestrian avoidance  
+![Detection examples](assets/detection_examples.png)
 
-- **TD3 Algorithm Enhancements**:  
-  - Double-Q networks and delayed policy update  
-  - Target action smoothing  
-  - Exploration noise linear decay
+### Navigation: TD3 in ROS/Gazebo
 
-- **Curriculum Learning**: Four-stage training (Stage 1–4) with weight inheritance to progressively adapt to increasing dynamic complexity and pedestrian density.
+The navigation module is based on a TD3 mobile robot navigation implementation. It trains a Pioneer 3DX robot in Gazebo using:
 
-### 3. Control
+- 20 angular bins from simulated Velodyne point cloud distances.
+- 4 robot/goal features: goal distance, goal heading, linear velocity, angular velocity.
+- 2 continuous actions mapped to `/r1/cmd_vel`.
+- Twin critics, delayed policy updates, target action smoothing, replay buffer training, and exploration noise decay.
 
-- TD3 Actor outputs 2D continuous actions mapped to linear and angular velocities for `/cmd_vel` topic to control Pioneer 3DX robot in ROS/Gazebo.
+The current checked-in TD3 code uses a 24-dimensional state (`20` LiDAR bins + `4` robot/goal features). The richer report-level design with explicit dynamic pedestrian features and staged curriculum learning is documented in the report, but is not fully represented as a standalone checked-in decision module in this repository.
 
-## 📊 Results
+![ROS/Gazebo demo](assets/ros_gazebo_demo.png)
 
-| Stage | Success Rate | Collision Rate | Time Efficiency (m/step) |
-|-------|-------------|----------------|-------------------------|
-| Stage 1 | 60% | 0% | 0.027 |
-| Stage 2 | 82% | 15% | 0.022 |
-| Stage 3 | 41% | 28% | 0.016 |
-| Stage 4 | 63% | 17% | 0.026 |
+## Installation
 
-- AP@0.5m for LiDAR pedestrian detection improved from 0.417 → 0.566.  
-- Dense reward function prevents reward hacking and encourages smooth, collision-free navigation.  
-- Full system improves robot autonomy in realistic dynamic scenarios with multiple pedestrians.
+The two modules have different runtime environments. The perception module is Python/PyTorch based. The navigation module requires ROS Noetic and Gazebo.
 
-![Performance Chart](assets/performance_chart.png)  
-*Navigation success, collision rate, and efficiency over curriculum stages.*
+### Perception Environment
 
-## ⚙️ Installation
+From the repository root:
 
-## 🚀 Usage
+```bash
+cd Perception
+python -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+pip install -e .
+```
+
+For CUDA acceleration, install a PyTorch build that matches your CUDA toolkit before installing the remaining requirements.
+
+External assets are not included in the repository:
+
+- JRDB dataset: place or symlink it at `Perception/data/JRDB`.
+- YOLOv8 weights, such as `yolov8x.pt`: download separately and pass the path with `--model`.
+- DR-SPAAM checkpoints and full training logs: provide locally if you want to run detector tests or resume experiments.
+
+### ROS/Gazebo Environment
+
+The navigation code was tested upstream with ROS Noetic, Ubuntu 20.04, Python 3.8, PyTorch, TensorBoard, and Gazebo.
+
+```bash
+cd RL-robot-navigation/catkin_ws
+catkin_make_isolated
+source devel_isolated/setup.bash
+```
+
+Set ROS/Gazebo environment variables before launching training:
+
+```bash
+export ROS_HOSTNAME=localhost
+export ROS_MASTER_URI=http://localhost:11311
+export ROS_PORT_SIM=11311
+export GAZEBO_RESOURCE_PATH=$PWD/src/multi_robot_scenario/launch
+```
+
+## Usage
+
+### 1. Prepare JRDB Data
+
+```bash
+cd Perception
+python bin/setup_jrdb_dataset_v2.py --split train
+```
+
+The setup script extracts laser scans from JRDB rosbags and writes synchronized `frames_pc_im_laser.json` files. If laser files already exist, use:
+
+```bash
+python bin/setup_jrdb_dataset_v2.py --split train --skip_laser
+```
+
+### 2. Generate YOLOv8 Detections
+
+```bash
+python bin/generate_yolov8_detections.py \
+    --data_dir ./data/JRDB \
+    --split train \
+    --model ./yolov8x.pt \
+    --device cuda
+```
+
+This writes JRDB-style detection JSON files under:
+
+```text
+data/JRDB/train_dataset/detections/detections_2d_stitched_yolov8/
+```
+
+### 3. Fuse Mask R-CNN and YOLOv8 Detections
+
+```bash
+python bin/fuse_detections.py \
+    --data_dir ./data/JRDB \
+    --split train \
+    --iou_thresh 0.5 \
+    --min_conf 0.3
+```
+
+The fused outputs are written to:
+
+```text
+data/JRDB/train_dataset/detections/detections_2d_stitched_fused/
+```
+
+### 4. Train DR-SPAAM with Pseudo Labels
+
+```bash
+python bin/train.py --cfg cfgs/dr_spaam_jrdb_maskrcnn_pseudo.yaml
+python bin/train.py --cfg cfgs/dr_spaam_jrdb_yolov8_pseudo.yaml
+python bin/train.py --cfg cfgs/dr_spaam_jrdb_fused_pseudo.yaml
+```
+
+Or run the comparison script:
+
+```bash
+bash scripts/run_comparison_experiments.sh
+```
+
+### 5. Compare Detector Outputs
+
+```bash
+python bin/compare_detectors.py \
+    --data_dir ./data/JRDB \
+    --split train \
+    --output_dir ./comparison_results
+```
+
+### 6. Train or Test the TD3 Navigation Baseline
+
+```bash
+cd RL-robot-navigation/TD3
+python3 train_velodyne_td3.py
+```
+
+Monitor training with TensorBoard:
+
+```bash
+tensorboard --logdir runs
+```
+
+After a policy has been saved under `pytorch_models/`, test it with:
+
+```bash
+python3 test_velodyne_td3.py
+```
+
+Note: the TD3 scripts currently expect a launch file named `multi_robot_scenario.launch` under `RL-robot-navigation/TD3/assets/`, while the checked-in ROS launch files are under `RL-robot-navigation/catkin_ws/src/multi_robot_scenario/launch/`. Create or adjust the launch path before running the scripts.
+
+## Results Summary
+
+The project report presents the following headline results:
+
+- LiDAR pedestrian detection AP@0.5m: `0.417 -> 0.566`.
+- Improved pseudo-label quality through YOLOv8 and fused detector supervision.
+- TD3-based navigation experiments in increasingly difficult dynamic scenarios.
+- Final reported dense-scenario navigation success rate: `63.0%`.
+
+Because datasets, model weights, checkpoints, and complete experiment logs are not included, these numbers should be treated as report results rather than values automatically reproduced by a fresh clone.
+
+## Known Limitations
+
+- JRDB data, YOLOv8 weights, pretrained checkpoints, and training logs are not included.
+- The perception and navigation modules are not wired into a single executable end-to-end ROS pipeline in the current source tree.
+- The checked-in TD3 implementation uses a 24-dimensional LiDAR plus goal state, not the full report-level semantic pedestrian state.
+- The navigation launch path needs to be adjusted before running TD3 training/testing from `RL-robot-navigation/TD3`.
+- Some perception utilities depend on JRDB-specific directory layouts and ROS bag-reading dependencies.
+
+## References and Acknowledgements
+
+This repository builds on:
+
+- DR-SPAAM/DROW-style 2D LiDAR pedestrian detection code and methodology.
+- YOLOv8 from Ultralytics for camera-based pedestrian detections.
+- The TD3 ROS/Gazebo mobile robot navigation implementation in `RL-robot-navigation`.
+- The Velodyne Gazebo simulator packages included under the ROS workspace.
+
+Please also consult module-level READMEs for more detailed setup notes:
+
+- [Perception README](./Perception/README.md)
+- [RL-robot-navigation README](./RL-robot-navigation/README.md)
 
 ## Keywords
 
-Robot Perception · Pedestrian Detection · 2D LiDAR · Dynamic Navigation · Reinforcement Learning · TD3 · DR-SPAAM · Curriculum Learning · ROS · Gazebo
+Robot perception, pedestrian detection, 2D LiDAR, DR-SPAAM, YOLOv8, pseudo labels, dynamic robot navigation, reinforcement learning, TD3, ROS, Gazebo.
