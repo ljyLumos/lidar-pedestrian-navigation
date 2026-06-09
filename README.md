@@ -10,7 +10,6 @@ This repository collects the code and experiment assets for a course/research pr
 The project report describes the full research motivation, method design, and experimental results:
 
 [Project Report](./docs/report.pdf)
-
 ![System framework](assets/framework.png)
 
 ## Overview
@@ -21,6 +20,8 @@ Robots moving through dynamic pedestrian environments need both reliable percept
 2. Navigation: use TD3 to learn continuous linear and angular velocity commands for a Pioneer 3DX robot in ROS/Gazebo from LiDAR observations and goal-relative state.
 
 The report discusses a broader end-to-end design in which semantic pedestrian information from perception is used to improve dynamic navigation. The current source tree should be read as a reproducible code base for the perception experiments plus a ROS/Gazebo TD3 navigation baseline, with integration notes and assets for the combined project.
+
+![Overview](assets/overview.png)
 
 ## Repository Structure
 
